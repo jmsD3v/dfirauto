@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DFIR-Auto Triage Report — Case {{ report.case_id }}</title>
+<style>
+  :root { --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;--red:#f85149;--orange:#d29922;--yellow:#e3b341;--cyan:#58a6ff;--green:#3fb950;--purple:#bc8cff; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
+  .page{max-width:1200px;margin:0 auto;padding:32px 24px;}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--border);padding-bottom:20px;margin-bottom:28px;}
+  .header h1{font-size:22px;font-weight:700;color:var(--cyan);}
+  .header .meta{text-align:right;color:var(--muted);font-size:12px;line-height:1.7;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;margin-bottom:28px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px 18px;text-align:center;}
+  .card .num{font-size:28px;font-weight:700;line-height:1;margin-bottom:4px;}
+  .card .label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);}
+  .card.critical .num{color:var(--red);}.card.high .num{color:var(--orange);}.card.medium .num{color:var(--yellow);}.card.total .num{color:var(--cyan);}
+  h2{font-size:15px;font-weight:600;color:var(--cyan);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:16px;margin-top:28px;}
+  .ai-box{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--purple);border-radius:0 8px 8px 0;padding:16px 20px;font-size:13px;line-height:1.7;margin-bottom:20px;white-space:pre-wrap;}
+  .recs li{font-size:12px;color:var(--muted);margin-left:16px;margin-bottom:4px;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--border);}
+  td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+  tr:hover td{background:var(--surface);}
+  .sev{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;}
+  .sev-critical{background:rgba(248,81,73,.15);color:var(--red);border:1px solid var(--red);}
+  .sev-high{background:rgba(210,153,34,.15);color:var(--orange);border:1px solid var(--orange);}
+  .sev-medium{background:rgba(227,179,65,.15);color:var(--yellow);border:1px solid var(--yellow);}
+  .sev-low{background:rgba(88,166,255,.15);color:var(--cyan);border:1px solid var(--cyan);}
+  .sev-info{background:rgba(139,148,158,.1);color:var(--muted);border:1px solid var(--border);}
+  .mitre{display:inline-block;background:rgba(188,140,255,.1);color:var(--purple);border:1px solid rgba(188,140,255,.3);border-radius:3px;font-size:10px;padding:1px 6px;margin:1px 2px;}
+  .tag{display:inline-block;background:rgba(48,54,61,.8);color:var(--muted);border-radius:3px;font-size:10px;padding:1px 5px;margin:1px;}
+  .footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--border);text-align:center;font-size:11px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <h1>DFIR-Auto — Forensic Triage Report</h1>
+      <div style="margin-top:6px;color:var(--muted);font-size:13px;">Case ID: {{ report.case_id }} | Host: {{ report.hostname }}</div>
+    </div>
+    <div class="meta">
+      <div>Generated: {{ generated_at }}</div>
+      <div>Triage: {{ report.started_at }}</div>
+      <div>Duration: {{ report.duration_seconds|round(1) }}s</div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card total"><div class="num">{{ report.summary.total_artifacts }}</div><div class="label">Artifacts</div></div>
+    <div class="card critical"><div class="num">{{ report.summary.critical }}</div><div class="label">Critical</div></div>
+    <div class="card high"><div class="num">{{ report.summary.high }}</div><div class="label">High</div></div>
+    <div class="card medium"><div class="num">{{ report.summary.medium }}</div><div class="label">Medium</div></div>
+    <div class="card total"><div class="num">{{ report.summary.timeline_events }}</div><div class="label">Timeline Events</div></div>
+    <div class="card total"><div class="num">{{ report.summary.collectors_done }}/{{ report.summary.collectors_run }}</div><div class="label">Collectors</div></div>
+  </div>
+
+  {% if report.ai_narrative %}
+  <h2>AI Incident Narrative</h2>
+  <div class="ai-box">{{ report.ai_narrative }}</div>
+  {% if report.recommendations %}
+  <ul class="recs">{% for r in report.recommendations %}<li>{{ r }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% endif %}
+
+  <h2>Artifacts ({{ report.artifacts|length }})</h2>
+  <table>
+    <thead><tr>
+      <th>Severity</th><th>Type</th><th>Collector</th><th>Name</th><th>Description</th><th>MITRE</th><th>Tags</th>
+    </tr></thead>
+    <tbody>
+    {% for a in report.artifacts %}
+    <tr>
+      <td><span class="sev sev-{{ a.severity }}">{{ a.severity }}</span></td>
+      <td style="color:var(--muted);">{{ a.type }}</td>
+      <td style="color:var(--muted);">{{ a.collector }}</td>
+      <td style="font-family:monospace;font-size:11px;">{{ a.name[:30] }}</td>
+      <td style="font-size:12px;">{{ a.description[:100] }}</td>
+      <td>{% for t in a.mitre_techniques[:2] %}<span class="mitre">{{ t }}</span>{% endfor %}</td>
+      <td>{% for t in a.tags[:3] %}<span class="tag">{{ t }}</span>{% endfor %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {% if report.timeline %}
+  <h2>Timeline ({{ report.timeline|length }} events)</h2>
+  <table>
+    <thead><tr><th>Timestamp</th><th>Severity</th><th>Type</th><th>Source</th><th>Description</th></tr></thead>
+    <tbody>
+    {% for e in report.timeline %}
+    <tr>
+      <td style="white-space:nowrap;color:var(--muted);font-size:11px;">{{ e.timestamp[:19] }}</td>
+      <td><span class="sev sev-{{ e.severity }}">{{ e.severity }}</span></td>
+      <td style="color:var(--muted);">{{ e.event_type }}</td>
+      <td style="color:var(--muted);">{{ e.source }}</td>
+      <td style="font-size:12px;">{{ e.description[:100] }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <div class="footer">
+    DFIR-Auto v{{ version }} &bull; Powered by Gemini AI &bull;
+    Copyright &copy; 2025 Desarrollado desde Las Brenas con amor por @jmsDev All rights reserved
+  </div>
+</div>
+</body>
+</html>
