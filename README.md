@@ -1,5 +1,7 @@
 # DFIR-Auto
 
+![banner](docs/banner.svg)
+
 **Triaje forense automatizado de un sistema en vivo (F-01) — procesos, red, filesystem y persistencia, con narrativa de incidente generada por IA.**
 
 ## Qué hace
