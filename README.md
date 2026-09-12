@@ -15,15 +15,17 @@ Es una herramienta de **triaje**, no de forense profundo: usa heurísticas relat
 - Clasificación de severidad (CRITICAL/HIGH/MEDIUM/LOW/INFO) y mapeo a técnicas MITRE ATT&CK por cada hallazgo (ej. `T1036.005` process masquerading, `T1547.001` autorun registry, `T1070.001` borrado de logs).
 - Detecciones concretas: procesos enmascarados como binarios del sistema en rutas incorrectas, procesos sin imagen en disco (indicio de hollowing), conexiones salientes a puertos clásicos de C2 (4444, 1337, 31337...), archivos con doble extensión (`factura.pdf.exe`), firmas de webshell en PHP/ASP, binarios SUID/SGID en Linux, entradas de autorun en el registro de Windows.
 - Reporte HTML con tema oscuro (Jinja2) y exportación JSON para cadena de custodia.
-- Narrativa de incidente vía Google Gemini (`gemini-1.5-flash`) — resume qué pasó, evalúa severidad global y sugiere remediación. Se puede desactivar con `--no-ai` y la app funciona igual.
+- Narrativa de incidente por IA — resume qué pasó, evalúa severidad global y sugiere remediación. **No depende de un proveedor fijo**: detecta automáticamente cuál API key está configurada (Anthropic Claude, Google Gemini u OpenAI) y usa esa. Se puede desactivar con `--no-ai` y la app funciona igual.
 - **Heurísticas simples = falsos positivos esperables.** Verificado en una corrida real: `cmd.exe` se marca HIGH porque su nombre está en la lista de "herramientas de red" (`_NETWORK_TOOLS`), y `System`/`System Idle Process` (PID 0/4 en Windows) se marcan HIGH por "sin ejecutable en disco" — son procesos del kernel, no hay nada raro. Toda entrada de autorun en el registro se clasifica como mínimo MEDIUM aunque sea legítima. Es una herramienta de triaje rápido para priorizar revisión manual, no un veredicto final.
 
 ## Requisitos
 
 - Python 3.11+ (probado en este entorno con 3.14.6).
 - Sin dependencias de sistema — todas las librerías (incluidas `cryptography` y `grpcio`, que traen extensiones nativas) instalan como wheels precompiladas en Windows/Linux/macOS, no hace falta compilador.
-- Variable de entorno opcional:
-  - `GEMINI_API_KEY` — habilita la narrativa de incidente con IA (Google Gemini, tiene tier gratuito). Sin ella, todo lo demás funciona igual.
+- Variable de entorno opcional — **cualquiera de estas API keys** habilita la narrativa de incidente con IA (se detecta automáticamente cuál está configurada; sin ninguna, todo lo demás funciona igual):
+  - `ANTHROPIC_API_KEY` (Claude) — prioridad más alta si hay varias configuradas.
+  - `GEMINI_API_KEY` (Google Gemini, tiene tier gratuito) — segunda prioridad.
+  - `OPENAI_API_KEY` (OpenAI) — tercera prioridad.
 
 ## Instalación
 
@@ -36,10 +38,10 @@ source .venv/Scripts/activate      # Windows (Git Bash) — en cmd/PowerShell: .
 pip install -e .
 
 cp .env.example .env
-# Opcional: agregar GEMINI_API_KEY en .env para la narrativa de IA
+# Opcional: agregar UNA de ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY en .env
 ```
 
-Instalación verificada en este entorno (Windows, Python 3.14.6, venv limpio): `pip install -e .` resuelve las ~50 dependencias (incluyendo el SDK de `google-generativeai`) sin conflictos ni errores.
+Instalación verificada en este entorno (Windows, Python 3.14.6, venv limpio): `pip install -e .` resuelve las dependencias (incluyendo los SDKs `anthropic`, `google-generativeai` y `openai`) sin conflictos ni errores.
 
 ## Uso
 
@@ -47,7 +49,7 @@ Instalación verificada en este entorno (Windows, Python 3.14.6, venv limpio): `
 # Triaje completo del sistema actual, sin IA, guardando JSON
 dfirauto triage --no-ai --output triage.json
 
-# Triaje completo con narrativa de IA (requiere GEMINI_API_KEY)
+# Triaje completo con narrativa de IA (requiere ANTHROPIC_API_KEY, GEMINI_API_KEY u OPENAI_API_KEY)
 dfirauto triage --output triage.json
 
 # Triaje incluyendo análisis de un .evtx puntual
@@ -89,7 +91,7 @@ dfirauto/
 │   │   ├── persistence_collector.py # Registro (Win) / cron+rc.local (Linux) / launchd (macOS)
 │   │   └── evtx_collector.py        # Parseo de .evtx con python-evtx
 │   ├── core/triage.py               # Orquestador: corre los collectors en paralelo y arma la timeline
-│   ├── analyzers/ai_analyzer.py     # Llamada a Gemini para la narrativa de incidente
+│   ├── analyzers/ai_analyzer.py     # Narrativa de incidente — auto-detecta proveedor (Claude/Gemini/OpenAI)
 │   ├── types/artifacts.py           # ForensicArtifact, TriageReport, TimelineEvent, Severity
 │   ├── report/generator.py + template.html  # Reporte HTML (Jinja2) y PDF (weasyprint, opcional)
 │   └── cli/main.py                  # CLI (Typer): triage / collect / report / demo
