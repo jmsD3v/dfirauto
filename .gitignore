@@ -3,3 +3,25 @@ __pycache__/
 *.pyc
 *.egg-info/
 .env
+
+# --- Base de seguridad e higiene (2026-10) ---
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.template
+.vercel
+*.log
+logs/
+*.pem
+*.key
+*.p12
+*.pfx
+.DS_Store
+Thumbs.db
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
